@@ -1,15 +1,14 @@
-// app.js
 const express = require('express');
 const mongoose = require('mongoose');
-require('dotenv').config(); // Load environment variables from .env file
+require('dotenv').config(); // .env file
 const app = express();
 const StockSchema = require('./models/stock.js')
 const PORT = process.env.PORT || 5000;
 const cors = require('cors')
+const dbURL = process.env.MONGODB_URI;
+const path = require('path')
 
-
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
+mongoose.connect(dbURL, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => {
@@ -18,17 +17,17 @@ mongoose.connect(process.env.MONGODB_URI, {
   console.error('MongoDB connection error:', error);
 });
 
-
+// middleware
 app.use(express.json());
-
-//  CORS middleware
 app.use(cors());
+
 
 const stockNames = ['AAPL', 'GOOGL', 'TSLA', 'AMZN', 'MSFT', 'META', 'NFLX', 'NVDA', 'V', 'MA'];
 const generateRandomPrice = () => {
-  const num = Math.random() * 200; // Replace with generating random prices
+  const num = Math.random() * 200; // Random Price
   return Math.floor(num);
 };
+
 
 app.post('/update', async (req, resp) => {
   try {
@@ -37,7 +36,7 @@ app.post('/update', async (req, resp) => {
       const existingStock = await StockSchema.findOne({ name });
 
       if (existingStock) {
-        // If the stock exists, update its price and lastUpdated
+        // If the stock exists, update its price and lastUpdated time
         const newPrice = generateRandomPrice();
         existingStock.price = newPrice;
         existingStock.lastUpdated = new Date();
@@ -45,7 +44,7 @@ app.post('/update', async (req, resp) => {
         return existingStock;
       }
       else {
-        // If the stock does not exist, insert a new one
+        // If the stock does not exist, insert a new stock
         const newStock = new StockSchema({
           name,
           price: generateRandomPrice(),
@@ -65,6 +64,8 @@ app.post('/update', async (req, resp) => {
   }
 });
 
+
+// Update stock price in every 1 min
 const updateStockPrices = async () => {
   try {
     const stocksData = stockNames.map(async (name) => {
@@ -122,6 +123,11 @@ app.get('/getstock/:id', async (req, resp) => {
     resp.status(500).json({ message: 'Internal Server Error, Error in fetching Stocks' })
   }
 })
+
+app.use(express.static(path.join(__dirname, "public/build")));
+app.get("/*", function (req, res) {
+  res.sendFile(path.join(__dirname, "public/build", "index.html"));
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
